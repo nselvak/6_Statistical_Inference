@@ -1,1 +1,3 @@
-# 6_Statistical_Inference
+# Statistical Inference
+
+Contains 1 Project
