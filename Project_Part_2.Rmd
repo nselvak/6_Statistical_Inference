@@ -1,0 +1,211 @@
+---
+title: "Inferential Data Analysis"
+author: "nselvak"
+date: "8/24/2020"
+output: html_document
+---
+
+
+## Instructions
+
+* Load the ToothGrowth data and perform some basic exploratory data analyses
+
+* Provide a basic summary of the data.
+
+* Use confidence intervals and/or hypothesis tests to compare tooth growth by supp and dose. (Only use the techniques from class, even if there's other approaches worth considering)
+
+* State your conclusions and the assumptions needed for your conclusions.
+
+---
+
+### Exploratory data analysis
+
+First, we load the required packages and the dataset
+
+```{r, Loading Libraries, echo=T, results='hide', message=F, warning=F}
+#Load required packages
+library(tidyverse)
+#Load data and convert to tbl format
+data(ToothGrowth)
+```
+
+We take a look at the structure of our dataset and summarize the variables it contains
+
+```{r}
+ 
+str(ToothGrowth) # Structure
+
+summary(ToothGrowth) # Summary
+```
+
+Dataset of 60 observations of 3 variables:
+
+* **len**: tooth length, numeric variable
+* **supp**: supplement type (VC:vitamin c or OJ:orange juice), factor variable
+* **dose**: dose(in milligrams), numeric variable
+
+```{r, Unique Doses}
+# Unique values in the dose vector
+ToothGrowth %>% 
+    select(dose) %>% 
+    unique()
+```
+
+The numeric variable _dose_ contains only 3 unique values: 0.5, 1, 2.  Its better to convert it to a factor variable with three levels (0.5, 1.0, 2.0)
+
+```{r}
+#Convert to factor
+ToothGrowth <- ToothGrowth %>% 
+    mutate(dose = as.factor(dose))
+```
+
+#### Plots
+
+```{r, Boxplots 1}
+ggplot(ToothGrowth, aes(dose, len, fill = supp)) +
+    geom_boxplot() +
+    facet_grid(. ~ supp) +
+    scale_fill_brewer(palette = "Set1") +
+    theme_bw() +
+    ggtitle("Teeth Length vs Dose level \nby Supplement type") +
+    labs(x="dose/mg", 
+         y= "teeth length ") +
+    guides(fill=guide_legend(title="Supplement type"))
+```
+
+The multi-panel plot emphasizes the relationship between teeth length and dose level for each supplement type. There appears to be a positive relationship between dose and teeth length for both supplement types. Thus, as the dose of supplement increases, teeth length increase.
+
+```{r, Boxplots 2}
+ggplot(ToothGrowth, aes(supp, len)) +
+    geom_boxplot(aes(fill = supp)) +
+    facet_wrap(~ dose) +
+    scale_fill_brewer(palette = "Set1") +
+    theme_bw() +
+    ggtitle("Teeth Length vs Supplement type \nby Dose level ") +
+    labs(x="supplement type",
+         y= "teeth length ") +
+    guides(fill=guide_legend(title="Supplement type"))
+```
+
+These Box-plots show the relationship between supplement types and teeth length. Here the relationship is less clearer. Orange juice OJ appears to be more effective at dosage levels of 0.5 and 1. Whereas, at dosage level 2 there doesnot appear to be any significant difference.
+
+```{r, Teeth Lengths}
+ToothGrowth  %>% 
+    filter(dose == 2)  %>% 
+    group_by(supp)  %>%  
+    summarise(avg.length = mean(len))
+```
+
+We can see, at dosage level 2, VC appears to be slightly more effective than OJ, with an average teeth length of 26.14 vs 26.06
+
+### Hypothesis Test 
+
+We want to further compare teeth growth by supplement type and dose levels. TWe will be using  t-test. The dataset has two levels for supp: OJ and VC and three levels for dose: 0.5, 1, 2. Thus we'll have to run one hypothesis test for factor _supp_ and one for each possible pair of the 3 levels in the factor _dose_, that is, we will run a total of 4 tests.
+
+#### Assumptions
+
+1. The variables must be independent and identically distributed (i.i.d.).
+
+2. Variances of tooth growth are different when using different supplement and dosage.
+
+3. Tooth growth follows a normal distribution.
+
+**Testing by dose levels**
+
+Hypothesis for the dose
+Let our null hypothesis to be there is no difference in tooth growth for each dose test case
+
+a1 = a2
+
+Let our alternate hypothesis to be there is more tooth growth when using dose 1 than dose 2
+
+a1 > a2
+
+* ##### Test A, dose = 0.5 and dose = 1
+
+```{r, Dose Test A}
+# Exract the len and dose vectors from the df ToothGrowth
+len_a <- ToothGrowth %>% 
+    filter(dose %in% c(0.5,1)) %>% 
+    select(len) %>% 
+    unlist()
+
+dose_a <- ToothGrowth %>% 
+    filter(dose %in% c(0.5,1)) %>% 
+    select(dose) %>% 
+    unlist()
+
+# Test A
+(Test.a <- t.test(len_a~dose_a, paired = FALSE))
+```
+
+* ##### Test B, dose = 0.5 and dose = 2
+
+```{r, Dose Test B}
+# Exract the len and dose vectors from the df ToothGrowth
+len_b <- ToothGrowth %>% 
+    filter(dose %in% c(0.5,2)) %>% 
+    select(len) %>% 
+    unlist()
+
+dose_b <- ToothGrowth %>% 
+    filter(dose %in% c(0.5, 2)) %>% 
+    select(dose) %>% 
+    unlist()
+
+# Test B 
+(Test.b <- t.test(len_b~dose_b, paired = FALSE))
+```
+
+* ##### Test C, dose = 1 and dose = 2
+
+```{r, Dose Test C}
+# Exract the len and dose vectors from the df ToothGrowth
+len_c <- ToothGrowth %>% 
+    filter(dose %in% c(1,2)) %>% 
+    select(len) %>% 
+    unlist()
+
+dose_c <- ToothGrowth %>% 
+    filter(dose %in% c(1,2)) %>% 
+    select(dose) %>% 
+    unlist()
+
+# Test c
+(Test.c <- t.test(len_c~dose_c, paired = FALSE))
+```
+
+For all cases the p-value is lower than 0.05. Thus, we reject null hypothesis. There appears to be a positive relationship between dose level and teeth length
+
+**Testing by Supplement**
+
+Hypothesis for the supplement OJ vs VC
+Let our null hypothesis to be there is no difference in tooth growth when using the supplement OJ and VC.
+
+
+Let our alternate hypothesis to be there is more tooth growth when using supplement OJ than VC.
+
+```{r, Supp Test}
+# Exract the len and supp vectors from the df ToothGrowth
+len <- ToothGrowth %>% 
+    select(len) %>% 
+    unlist()
+supp <- ToothGrowth %>% 
+    select(supp) %>% 
+    unlist()
+
+# Supp Test
+t.test(len~supp, paired=F)
+```
+
+p-value of the test is 0.0603 which is greater than 0.05 and the confidence
+interval of the test contains zero hence, we do not reject the null hypothesis and can be said that supplement types does not have any impact on teeth growth. There is no significant statistical difference between them
+
+### Conclusion
+
+Assuming all the are met.
+
+**It appears that there is a statistically significant difference between teeth length and dose levels across both delivery methods, in other words, as the dose increases so does teeth length.** 
+
+**On the other hand, there does not seem to be a statistically significant difference between both delivery methods, with Orange juice apparently more effective at dose levels 0.5 and 1, and VC slightly more effective at dose level 2. **
+
